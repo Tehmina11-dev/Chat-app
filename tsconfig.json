@@ -1,0 +1,34 @@
+{
+  "compilerOptions": {
+    /* Base Options */
+    "target": "ESNext",
+    "module": "NodeNext",
+    "moduleResolution": "NodeNext",
+    "lib": ["ESNext"],
+    "types": ["node"],
+    
+    /* Output Directory */
+    "outDir": "./dist",
+    "rootDir": "./",
+    
+    /* Module System */
+    "esModuleInterop": true,
+    "forceConsistentCasingInFileNames": true,
+    "moduleDetection": "force",
+    "isolatedModules": true,
+
+    /* Strictness */
+    "strict": true,
+    "skipLibCheck": true,
+    
+    /* Fixing the errors you saw */
+    "verbatimModuleSyntax": false, // Isko false karne se "import type" ka masla hal ho jayega
+    "noUncheckedIndexedAccess": true,
+
+    /* Source Maps for debugging */
+    "sourceMap": true,
+    "declaration": true
+  },
+  "include": ["**/*.ts"],
+  "exclude": ["node_modules", "dist"]
+}
