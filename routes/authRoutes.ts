@@ -1,14 +1,10 @@
 import express from "express";
-import {
-  sendMessage,
-  getChatHistory,
-  deleteMessage,
-} from "../controllers/messageController.js";
+import { signup, login, getAllUsers } from "../controllers/authController.js";
 
 const router = express.Router();
 
-router.post("/send", sendMessage);
-router.get("/history/:user1Id/:user2Id", getChatHistory);
-router.put("/delete/:id", deleteMessage);
+router.post("/signup", signup);
+router.post("/login", login);
+router.get("/users", getAllUsers);
 
 export default router;
