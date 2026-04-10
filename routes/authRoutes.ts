@@ -1,13 +1,14 @@
-import { Router } from 'express';
-import { signup, login, getAllUsers } from '../controllers/authController.js'; // Check karein ye import hai?
-// import { authenticateToken } from '../middleware/authMiddleware.js'; // Agar middleware hai
+import express from "express";
+import {
+  sendMessage,
+  getChatHistory,
+  deleteMessage,
+} from "../controllers/messageController.js";
 
-const router = Router();
+const router = express.Router();
 
-router.post('/signup', signup);
-router.post('/login', login);
-
-
-router.get('/users', getAllUsers); 
+router.post("/send", sendMessage);
+router.get("/history/:user1Id/:user2Id", getChatHistory);
+router.put("/delete/:id", deleteMessage);
 
 export default router;
