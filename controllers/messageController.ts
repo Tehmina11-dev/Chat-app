@@ -1,7 +1,7 @@
 import type { Request, Response } from "express";
 import { db } from "../utils/db.js";
 
-// 💬 SEND MESSAGE
+// 💬 SEND MESSAGE (UPDATED WITH file_type)
 export const sendMessage = async (req: Request, res: Response) => {
   const {
     sender_id,
@@ -9,6 +9,7 @@ export const sendMessage = async (req: Request, res: Response) => {
     message_text,
     file_url,
     audio_url,
+    file_type, // ✅ NEW FIELD
   } = req.body;
 
   // ✅ strict validation
@@ -19,8 +20,8 @@ export const sendMessage = async (req: Request, res: Response) => {
   try {
     const result = await db.query(
       `INSERT INTO messages 
-      (sender_id, receiver_id, message_text, file_url, audio_url)
-      VALUES ($1, $2, $3, $4, $5)
+      (sender_id, receiver_id, message_text, file_url, audio_url, file_type)
+      VALUES ($1, $2, $3, $4, $5, $6)
       RETURNING *`,
       [
         sender_id,
@@ -28,6 +29,7 @@ export const sendMessage = async (req: Request, res: Response) => {
         message_text || null,
         file_url || null,
         audio_url || null,
+        file_type || null, // ✅ NEW
       ]
     );
 
@@ -45,7 +47,7 @@ export const sendMessage = async (req: Request, res: Response) => {
   }
 };
 
-// 📜 CHAT HISTORY (WITH SAFE NULL HANDLING)
+// 📜 CHAT HISTORY (UNCHANGED)
 export const getChatHistory = async (req: Request, res: Response) => {
   const { user1Id, user2Id } = req.params;
 
@@ -73,7 +75,7 @@ export const getChatHistory = async (req: Request, res: Response) => {
   }
 };
 
-// 🗑️ DELETE MESSAGE (WHATSAPP STYLE)
+// 🗑️ DELETE MESSAGE (UNCHANGED)
 export const deleteMessage = async (req: Request, res: Response) => {
   const { id } = req.params;
   const { userId, type } = req.body;
