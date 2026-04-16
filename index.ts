@@ -100,11 +100,21 @@ io.on("connection", (socket: Socket) => {
 
       const savedMessage = result.rows[0];
 
-      const receiverSockets = userSockets.get(receiver_id);
+      console.log("✅ Message saved to DB:", savedMessage);
 
+      // 📤 Send to RECEIVER
+      const receiverSockets = userSockets.get(receiver_id);
       if (receiverSockets) {
         receiverSockets.forEach((socketId) => {
           io.to(socketId).emit("receive_message", savedMessage);
+        });
+      }
+
+      // 📤 Send back to SENDER (so they get the DB ID)
+      const senderSockets = userSockets.get(sender_id);
+      if (senderSockets) {
+        senderSockets.forEach((socketId) => {
+          io.to(socketId).emit("message_sent", savedMessage);
         });
       }
     } catch (err) {
