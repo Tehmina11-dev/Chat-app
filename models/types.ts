@@ -19,6 +19,9 @@ export interface ChatMessage {
   id?: number;              // Database generated
   sender_id: number;
   receiver_id: number;
-  message_text: string;          // Database mein 'message' column hai
+  message_text?: string;    // Database mein 'message' column hai
+  file_url?: string | null; // For file attachments
+  audio_url?: string | null; // For voice messages
+  file_type?: string | null; // MIME type of file
   created_at?: Date;        // Database generated timestamp
 }
