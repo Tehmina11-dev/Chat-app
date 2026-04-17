@@ -7,6 +7,7 @@ import dotenv from "dotenv";
 import authRoutes from "./routes/authRoutes.js";
 import messageRoutes from "./routes/messageRoutes.js";
 import uploadRoutes from "./routes/uploadRoutes.js";
+import aiRoutes from "./routes/aiRoutes.js";
 import { db } from "./utils/db.js";
 
 dotenv.config();
@@ -24,14 +25,36 @@ const io = new Server(httpServer, {
 app.use(cors());
 app.use(express.json());
 
-// 📁 Serve uploaded files
-app.use("/uploads", express.static("uploads"));
+// 📁 Serve uploaded files with proper headers for audio playback
+app.use("/uploads", (req, res, next) => {
+  const filePath = req.path;
+  
+  // Detect audio file type and set correct headers
+  if (filePath.endsWith(".wav")) {
+    res.setHeader("Content-Type", "audio/wav");
+    res.setHeader("Content-Disposition", "inline; filename=\"voice.wav\"");
+  } else if (filePath.endsWith(".mp3")) {
+    res.setHeader("Content-Type", "audio/mpeg");
+    res.setHeader("Content-Disposition", "inline; filename=\"voice.mp3\"");
+  } else if (filePath.endsWith(".webm")) {
+    res.setHeader("Content-Type", "audio/webm");
+    res.setHeader("Content-Disposition", "inline; filename=\"voice.webm\"");
+  } else if (filePath.endsWith(".ogg")) {
+    res.setHeader("Content-Type", "audio/ogg");
+    res.setHeader("Content-Disposition", "inline; filename=\"voice.ogg\"");
+  }
+  
+  // Add cache headers
+  res.setHeader("Cache-Control", "public, max-age=31536000");
+  next();
+}, express.static("uploads"));
 
 // =====================
 // ROUTES
 // =====================
 app.use("/api/auth", authRoutes);
 app.use("/api/messages", messageRoutes);
+app.use("/api/ai", aiRoutes);
 app.use("/upload", uploadRoutes);
 
 // =====================
@@ -139,6 +162,58 @@ io.on("connection", (socket: Socket) => {
           online: false,
         });
       }
+    }
+  });
+
+  // 🗑️ DELETE MESSAGE (REAL-TIME VIA SOCKET)
+  socket.on("delete_message", async (data: any) => {
+    const { messageId, userId, type, sender_id, receiver_id } = data;
+
+    try {
+      // Update database based on deletion type
+      if (type === "everyone") {
+        await db.query(
+          `UPDATE messages SET deleted_for_everyone = TRUE WHERE id = $1`,
+          [messageId]
+        );
+      } else if (type === "me") {
+        if (userId === sender_id) {
+          await db.query(
+            `UPDATE messages SET deleted_for_sender = TRUE WHERE id = $1`,
+            [messageId]
+          );
+        } else {
+          await db.query(
+            `UPDATE messages SET deleted_for_receiver = TRUE WHERE id = $1`,
+            [messageId]
+          );
+        }
+      }
+
+      // Get updated message
+      const result = await db.query("SELECT * FROM messages WHERE id = $1", [
+        messageId,
+      ]);
+      const updatedMessage = result.rows[0];
+
+      // Broadcast to both sender and receiver
+      const senderSockets = userSockets.get(sender_id);
+      if (senderSockets) {
+        senderSockets.forEach((socketId) => {
+          io.to(socketId).emit("message_deleted", updatedMessage);
+        });
+      }
+
+      const receiverSockets = userSockets.get(receiver_id);
+      if (receiverSockets) {
+        receiverSockets.forEach((socketId) => {
+          io.to(socketId).emit("message_deleted", updatedMessage);
+        });
+      }
+
+      console.log("✅ Message deleted:", messageId);
+    } catch (err) {
+      console.error("Delete message error:", err);
     }
   });
 });
