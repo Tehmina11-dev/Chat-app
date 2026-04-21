@@ -3,9 +3,11 @@ import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 import { db } from "../utils/db.js";
 import type { User } from "../models/types.js";
-import { io } from "../index.js"; // socket
+import { io } from "../index.js";
 
-// 1. GET ALL USERS
+// =====================
+// GET ALL USERS
+// =====================
 export const getAllUsers = async (req: Request, res: Response) => {
   try {
     const result = await db.query<User>(
@@ -22,7 +24,9 @@ export const getAllUsers = async (req: Request, res: Response) => {
   }
 };
 
-// 2. SIGNUP (REAL-TIME FIXED)
+// =====================
+// SIGNUP
+// =====================
 export const signup = async (req: Request, res: Response) => {
   const { username, email, password } = req.body;
 
@@ -38,29 +42,24 @@ export const signup = async (req: Request, res: Response) => {
       [username, email, hashedPassword]
     );
 
-    // ✅ SAFE CHECK (IMPORTANT FIX)
-    if (!result.rows || result.rows.length === 0) {
-      return res.status(500).json({ error: "User creation failed" });
-    }
-
-    const [newUser] = result.rows;
+    const newUser = result.rows[0];
 
 if (!newUser) {
   return res.status(500).json({ error: "User creation failed" });
 }
 
-    // 🔥 REAL-TIME EMIT
-    io.emit("new_user", {
-      id: newUser.id,
-      username: newUser.username,
-    });
+// safe after check
+io.emit("new_user", {
+  id: newUser.id,
+  username: newUser.username,
+});
 
     return res.status(201).json({
       message: "User created successfully",
       user: newUser,
     });
   } catch (err: any) {
-    console.error("DETAILED SIGNUP ERROR:", err);
+    console.error("SIGNUP ERROR:", err);
 
     if (err.code === "23505") {
       return res.status(400).json({
@@ -75,7 +74,9 @@ if (!newUser) {
   }
 };
 
-// 3. LOGIN (UNCHANGED)
+// =====================
+// LOGIN (FIXED VERSION)
+// =====================
 export const login = async (req: Request, res: Response) => {
   const { email, password } = req.body;
 
@@ -86,21 +87,27 @@ export const login = async (req: Request, res: Response) => {
   }
 
   try {
-    const result = await db.query<User>(
-      "SELECT * FROM auth WHERE email = $1",
+    // ✅ FIX: explicitly select password (NOT *)
+    const result = await db.query(
+      "SELECT id, username, email, password FROM auth WHERE email = $1",
       [email]
     );
 
     const user = result.rows[0];
 
-    if (!user) {
-      return res.status(404).json({ error: "User not found" });
+    if (!user || !user.password) {
+      return res.status(404).json({
+        error: "User not found or invalid data",
+      });
     }
 
-    const isMatch = await bcrypt.compare(password, user.password || "");
+    // ✅ safe password check
+    const isMatch = await bcrypt.compare(password, user.password);
 
     if (!isMatch) {
-      return res.status(400).json({ error: "Invalid credentials" });
+      return res.status(400).json({
+        error: "Invalid credentials",
+      });
     }
 
     const token = jwt.sign(
@@ -118,8 +125,9 @@ export const login = async (req: Request, res: Response) => {
         email: user.email,
       },
     });
+
   } catch (err: any) {
-    console.error("DETAILED LOGIN ERROR:", err);
+    console.error("LOGIN ERROR:", err);
 
     return res.status(500).json({
       error: "Login failed",
