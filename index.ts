@@ -16,13 +16,26 @@ const app = express();
 const httpServer = createServer(app);
 
 const io = new Server(httpServer, {
-  cors: { origin: "*" },
+  cors: {
+    origin: [
+      "http://localhost:3000",
+      "https://chatfrontend-theta.vercel.app"
+    ],
+    credentials: true
+  },
 });
 
 // =====================
 // MIDDLEWARE
 // =====================
-app.use(cors());
+app.use(cors({
+  origin: [
+    "http://localhost:3000",        // local frontend
+    "https://chatfrontend-theta.vercel.app"// your deployed frontend (if any)
+  ],
+  credentials: true
+}));
+app.options("*", cors());
 app.use(express.json());
 
 // 📁 Serve uploaded files with proper headers for audio playback
