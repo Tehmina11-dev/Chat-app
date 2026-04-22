@@ -3,7 +3,9 @@ import ws from 'ws';
 import dotenv from 'dotenv';
 
 dotenv.config();
-
+console.log("DB:", process.env.DATABASE_URL);
+console.log("JWT:", process.env.JWT_SECRET);
+console.log("RAILWAY ENV CHECK:", process.env.DATABASE_URL);
 // WebSocket fix for Neon
 neonConfig.webSocketConstructor = ws;
 

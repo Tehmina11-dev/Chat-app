@@ -81,33 +81,35 @@ export const login = async (req: Request, res: Response) => {
   const { email, password } = req.body;
 
   if (!email || !password) {
-    return res.status(400).json({
-      error: "Email and password are required",
-    });
+    return res.status(400).json({ error: "Email and password required" });
   }
 
   try {
-    // ✅ FIX: explicitly select password (NOT *)
     const result = await db.query(
       "SELECT id, username, email, password FROM auth WHERE email = $1",
       [email]
     );
+    
+
+    console.log("DB USER RESULT:", result.rows);
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: "User not found" });
+    }
 
     const user = result.rows[0];
 
-    if (!user || !user.password) {
-      return res.status(404).json({
-        error: "User not found or invalid data",
-      });
+    if (!user.password) {
+      return res.status(500).json({ error: "Password missing in DB row" });
     }
+    console.log("LOGIN BODY:", req.body);
+console.log("USER FROM DB:", user);
+console.log("PASSWORD FIELD:", user?.password);
 
-    // ✅ safe password check
     const isMatch = await bcrypt.compare(password, user.password);
 
     if (!isMatch) {
-      return res.status(400).json({
-        error: "Invalid credentials",
-      });
+      return res.status(400).json({ error: "Invalid credentials" });
     }
 
     const token = jwt.sign(
@@ -127,11 +129,13 @@ export const login = async (req: Request, res: Response) => {
     });
 
   } catch (err: any) {
-    console.error("LOGIN ERROR:", err);
+  console.error("🔥 FULL LOGIN ERROR:", err);
+  console.log("LOGIN REQUEST:", req.body);
 
-    return res.status(500).json({
-      error: "Login failed",
-      message: err.message,
-    });
-  }
+  return res.status(500).json({
+    error: "Login failed",
+    message: err?.message,
+    stack: err?.stack,
+  });
+}
 };
