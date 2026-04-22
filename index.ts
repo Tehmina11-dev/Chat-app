@@ -158,6 +158,20 @@ io.on("connection", (socket: Socket) => {
     }
   });
 
+  socket.on("delete_message", (data: any) => {
+    const { messageId, senderId, receiverId } = data;
+    const targetUserIds = new Set<number>([senderId, receiverId]);
+
+    targetUserIds.forEach((userId) => {
+      const sockets = userSockets.get(userId);
+      if (sockets) {
+        sockets.forEach((socketId) => {
+          io.to(socketId).emit("message_deleted", { messageId });
+        });
+      }
+    });
+  });
+
   // ❌ DISCONNECT
   socket.on("disconnect", () => {
     const userId = socket.data.userId;
@@ -178,57 +192,6 @@ io.on("connection", (socket: Socket) => {
     }
   });
 
-  // 🗑️ DELETE MESSAGE (REAL-TIME VIA SOCKET)
-  socket.on("delete_message", async (data: any) => {
-    const { messageId, userId, type, sender_id, receiver_id } = data;
-
-    try {
-      // Update database based on deletion type
-      if (type === "everyone") {
-        await db.query(
-          `UPDATE messages SET deleted_for_everyone = TRUE WHERE id = $1`,
-          [messageId]
-        );
-      } else if (type === "me") {
-        if (userId === sender_id) {
-          await db.query(
-            `UPDATE messages SET deleted_for_sender = TRUE WHERE id = $1`,
-            [messageId]
-          );
-        } else {
-          await db.query(
-            `UPDATE messages SET deleted_for_receiver = TRUE WHERE id = $1`,
-            [messageId]
-          );
-        }
-      }
-
-      // Get updated message
-      const result = await db.query("SELECT * FROM messages WHERE id = $1", [
-        messageId,
-      ]);
-      const updatedMessage = result.rows[0];
-
-      // Broadcast to both sender and receiver
-      const senderSockets = userSockets.get(sender_id);
-      if (senderSockets) {
-        senderSockets.forEach((socketId) => {
-          io.to(socketId).emit("message_deleted", updatedMessage);
-        });
-      }
-
-      const receiverSockets = userSockets.get(receiver_id);
-      if (receiverSockets) {
-        receiverSockets.forEach((socketId) => {
-          io.to(socketId).emit("message_deleted", updatedMessage);
-        });
-      }
-
-      console.log("✅ Message deleted:", messageId);
-    } catch (err) {
-      console.error("Delete message error:", err);
-    }
-  });
 });
 
 // =====================
