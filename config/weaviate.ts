@@ -4,20 +4,28 @@ import dotenv from 'dotenv';
 dotenv.config();
 
 // --- 1. BULLETPROOF CLIENT INITIALIZATION ---
-const rawHost = process.env.WEAVIATE_HOST || '';
+const rawHost = process.env.WEAVIATE_HOST || process.env.WEAVIATE_URL || '';
+const scheme = (process.env.WEAVIATE_SCHEME || 'https').replace(/^https?:\/\//, '').replace(/\/$/, '');
 // This ensures we have a clean domain like 'brp...weaviate.network'
 const cleanHost = rawHost.replace(/^https?:\/\//, '').replace(/\/$/, '');
 if (!cleanHost) {
-  console.error("❌ ERROR: WEAVIATE_HOST is missing in environment variables!");
+  console.error("❌ ERROR: WEAVIATE_HOST or WEAVIATE_URL is missing in environment variables!");
+  throw new Error("Missing WEAVIATE_HOST / WEAVIATE_URL");
 }
 
-console.log(`🌐 Connecting to Weaviate at: ${cleanHost}`);
+console.log(`🌐 Connecting to Weaviate at: ${scheme}://${cleanHost}`);
 
-const client = (weaviate as any).client({
-  scheme: 'https', // Weaviate Cloud always uses https
-  host: cleanHost, 
-  apiKey: new (weaviate as any).ApiKey(process.env.WEAVIATE_API_KEY || ''),
-});
+const clientConfig: any = {
+  scheme,
+  host: cleanHost,
+};
+
+const apiKey = process.env.WEAVIATE_API_KEY;
+if (apiKey) {
+  clientConfig.apiKey = new (weaviate as any).ApiKey(apiKey);
+}
+
+const client = (weaviate as any).client(clientConfig);
 
 // --- 2. CONNECTION & SCHEMA HELPERS ---
 
