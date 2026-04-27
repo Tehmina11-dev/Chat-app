@@ -7,6 +7,9 @@ dotenv.config();
 const rawHost = process.env.WEAVIATE_HOST || '';
 // This ensures we have a clean domain like 'brp...weaviate.network'
 const cleanHost = rawHost.replace(/^https?:\/\//, '').replace(/\/$/, '');
+if (!cleanHost) {
+  console.error("❌ ERROR: WEAVIATE_HOST is missing in environment variables!");
+}
 
 console.log(`🌐 Connecting to Weaviate at: ${cleanHost}`);
 
