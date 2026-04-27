@@ -10,6 +10,7 @@ import uploadRoutes from "./routes/uploadRoutes.js";
 import aiRoutes from "./routes/aiRoutes.js";
 import groupRoutes from "./routes/groupRoutes.js";
 import { db } from "./utils/db.js";
+import { testConnection, createChatSchema } from "./config/weaviate.js";
 
 dotenv.config();
 
@@ -287,13 +288,29 @@ io.on("connection", (socket: Socket) => {
 });
 
 // =====================
-// START SERVER
+// START APP FUNCTION
 // =====================
-const PORT = process.env.PORT || 5000;
+const startApp = async () => {
+  // Check if Weaviate is alive
+  const isConnected = await testConnection();
+  if (isConnected) {
+    await createChatSchema(); // Ye sirf ek baar chalega agar schema nahi bana
+  }
 
+  // Baaki server start logic (Express, etc.)
+  const PORT = process.env.PORT || 5000;
 
-httpServer.listen(PORT, () => {
-  console.log("Server running on port", PORT);
+  httpServer.listen(PORT, () => {
+    console.log("Server running on port", PORT);
+  });
+};
+
+// =====================
+// START APPLICATION
+// =====================
+startApp().catch((error) => {
+  console.error("Failed to start application:", error);
+  process.exit(1);
 });
 
 export { io };
