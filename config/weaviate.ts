@@ -1,4 +1,4 @@
-import weaviate, { WeaviateClient } from 'weaviate-ts-client';
+import weaviate from 'weaviate-ts-client';
 import dotenv from 'dotenv';
 
 dotenv.config();
