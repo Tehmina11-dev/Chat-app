@@ -74,10 +74,15 @@ app.use("/api/ai", aiRoutes);
 app.use("/upload", uploadRoutes);
 
 // =====================
-// TEST ROUTE
+// TEST & HEALTH CHECK ROUTES
 // =====================
 app.get("/", (req: Request, res: Response) => {
   res.send("Chat backend running");
+});
+
+// Health check endpoint for Docker healthcheck
+app.get("/health", (req: Request, res: Response) => {
+  res.json({ status: "ok", timestamp: new Date().toISOString() });
 });
 
 // =====================
