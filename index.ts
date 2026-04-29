@@ -1,3 +1,5 @@
+import 'dotenv/config'; 
+// import  weaviateClient  from './config/weaviate';
 import express, { Request, Response } from "express";
 import { createServer } from "http";
 import { Server, Socket } from "socket.io";
@@ -306,6 +308,7 @@ const startApp = async () => {
   const PORT = process.env.PORT || 5000;
 
   httpServer.listen(PORT, () => {
+    // console.log("All Envs:", process.env)
     console.log("Server running on port", PORT);
   });
 };
