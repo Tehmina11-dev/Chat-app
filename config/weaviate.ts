@@ -31,8 +31,15 @@ const client = (weaviate as any).client(clientConfig);
 
 export const testConnection = async (): Promise<boolean> => {
   try {
-    // Check if the server is actually reachable
-    await client.misc.readyChecker().do();
+    // readyChecker resolves to a boolean — it does NOT throw on a dead/missing
+    // cluster, so we must check the returned value, not just catch errors.
+    const ready = await client.misc.readyChecker().do();
+    if (!ready) {
+      console.error(
+        `❌ Weaviate not ready at ${scheme}://${cleanHost} — cluster is unreachable or does not exist (check WEAVIATE_HOST / that the cluster still exists in Weaviate Cloud).`,
+      );
+      return false;
+    }
     console.log('✅ Weaviate connection successful');
     return true;
   } catch (error: any) {
@@ -41,32 +48,54 @@ export const testConnection = async (): Promise<boolean> => {
   }
 };
 
+const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+
 export const createChatSchema = async (): Promise<void> => {
   const className = 'ChatMemory';
+  const schema = {
+    class: className,
+    vectorizer: 'none', // avoid external API calls and balance issues
+    properties: [
+      { name: 'content', dataType: ['text'] },
+      { name: 'userId', dataType: ['string'] },
+      { name: 'role', dataType: ['string'] },
+      { name: 'timestamp', dataType: ['date'] },
+    ],
+  };
+
+  // If the class already exists we don't need to do anything.
   try {
-    // --- STEP A: THE CLEANUP ---
-    // Clears old broken configurations (like the OpenAI vectorizer issue)
-    console.log(`🧹 Cleaning up old schema for '${className}'...`);
-    await client.schema.classDeleter().withClassName(className).do().catch(() => {});
-
-    // --- STEP B: THE NEW SCHEMA ---
-    // Using vectorizer: 'none' to avoid external API calls and balance issues
-    const schema = {
-      class: className,
-      vectorizer: 'none', 
-      properties: [
-        { name: 'content', dataType: ['text'] },
-        { name: 'userId', dataType: ['string'] },
-        { name: 'role', dataType: ['string'] },
-        { name: 'timestamp', dataType: ['date'] },
-      ],
-    };
-
-    await client.schema.classCreator().withClass(schema).do();
-    console.log(`✅ Schema '${className}' created successfully.`);
-  } catch (error: any) {
-    console.error(`❌ Schema creation error:`, error.message);
+    const existing = await client.schema.getter().do();
+    if (existing?.classes?.some((c: any) => c.class === className)) {
+      console.log(`✅ Schema '${className}' already exists.`);
+      return;
+    }
+  } catch {
+    // ignore — fall through to create with retries
   }
+
+  const maxAttempts = 5;
+  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+    try {
+      await client.schema.classCreator().withClass(schema).do();
+      console.log(`✅ Schema '${className}' created successfully.`);
+      return;
+    } catch (error: any) {
+      // undici hides the real network error under `.cause`
+      const cause = error?.cause ?? error?.message;
+      console.error(
+        `❌ Schema creation attempt ${attempt}/${maxAttempts} failed:`,
+        error?.message,
+        cause,
+      );
+      if (attempt < maxAttempts) {
+        const backoff = attempt * 2000; // 2s, 4s, 6s... lets a cold cluster wake up
+        console.log(`⏳ Retrying in ${backoff / 1000}s...`);
+        await sleep(backoff);
+      }
+    }
+  }
+  console.error(`❌ Could not create schema '${className}' after ${maxAttempts} attempts.`);
 };
 
 // --- 3. CORE RAG FUNCTIONS ---
